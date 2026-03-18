@@ -72,6 +72,8 @@ def pick_weighted_task_db():
 #ui
 
 def main(page: ft.Page):
+    page.window.prevent_close = False
+
     page.title = "a task a day"
     page.padding = 20
     page.window.width = 500
@@ -113,12 +115,15 @@ def main(page: ft.Page):
 
     def complete_task(task_id):
         complete_task_db(task_id)
-        refresh_task_list()
+        #close the window and program
+        page.run_task(page.window.close)
 
     def pick_task(e):
         task = pick_weighted_task_db()
         if task:
             selected_task_text.value = f"the ✨oRacLE✨ has chosen: \n {task['name']}"
+            complete_oracle_button.visible = True
+            complete_oracle_button.on_click = lambda e: complete_task(task['id'])
         else:
             selected_task_text.value = "you are free of burden"
         oracle_button.visible = False
@@ -155,14 +160,15 @@ def main(page: ft.Page):
     task_input = ft.TextField(label="new task", expand=True, on_submit=add_task)
     oracle_button = ft.Button("ask the ✨OrACle✨", on_click=pick_task)
     selected_task_text = ft.Text(size=18, weight="bold", text_align="center", visible=False)
+    complete_oracle_button = ft.Button("completed!", visible=False)
 
     oracle_container = ft.Container(
         content=ft.Column(
-            [oracle_button, selected_task_text],
+            [oracle_button, selected_task_text, complete_oracle_button],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER
         ),
         alignment=ft.Alignment(0, 0),
-        border=ft.border.all(1, "grey"),
+        border=ft.Border.all(1, "grey"),
         border_radius=10,
         padding=20,
     )
