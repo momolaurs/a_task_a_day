@@ -31,7 +31,7 @@ The project uses the following Python libraries:
 ## Contact
 For any issue, error, bug, or improvement idea feel free to contact the author, Laura Moset Estruch. 
 
-Email: lauramosetestruch@gmail.com || Linkedin: [HERE](https://www.linkedin.com/in/laura-moset-estruch-56b452237/)
+Email: lauramosetestruch@gmail.com or momolaurs@gmail.com|| Linkedin: [HERE](https://www.linkedin.com/in/laura-moset-estruch-56b452237/)
 
 
 
