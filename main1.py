@@ -192,4 +192,5 @@ def main(page: ft.Page):
 #run the thing
 
 init_db()
-ft.run(main)
+ft.app(target=main, view=ft.WEB_BROWSER, port=int(os.environ.get("PORT", 8080)))
+
