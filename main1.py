@@ -6,7 +6,7 @@ from datetime import datetime
 
 #database
 
-DB_PATH = os.getenv("DB_PATH", "tasks.db")
+DB_PATH = "/data/tasks.db"
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
