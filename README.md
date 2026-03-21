@@ -10,9 +10,40 @@ You add a task that needs to be done to a list > from that list, you can complet
 ## Features
 
 - Add, complete, and edit tasks
-- Weighted random task picker (tasks older in the list are more likely to be selected)
+- Use the oracle: a weighted random task picker
 - Storage using SQLite (tasks saved in `tasks.db`)
 - Clean, interactive UI with Flet
+
+---
+
+## How the Oracle works
+
+Each task is selected randomly, but older tasks are more likely to be picked.
+
+### Probability formula
+
+
+P(i) = w_i / Σ(w_j)
+
+
+Where:
+- `P(i)` = probability of selecting task i
+- `w_i` = weight of task i
+- `Σ(w_j)` = sum of all task weights
+
+### Example
+
+- Task A: 0 days old → weight = 1  
+- Task B: 2 days old → weight = 3  
+- Task C: 5 days old → weight = 6  
+
+Total weight = 10
+
+Probabilities:
+- Task A → 1 / 10  
+- Task B → 3 / 10  
+- Task C → 6 / 10  
+
 
 ---
 
