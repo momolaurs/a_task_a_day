@@ -69,7 +69,27 @@ def pick_weighted_task_db():
         weights.append(days_old + 1)
     return random.choices(tasks, weights=weights, k=1)[0]
 
-#ui
+
+def time_ago(date_str):
+    now = datetime.now()
+    past = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    diff = now - past
+
+    seconds = diff.total_seconds()
+
+    if seconds < 60:
+        return "just now"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        return f"{minutes}m ago"
+    elif seconds < 86400:
+        hours = int(seconds // 3600)
+        return f"{hours}h ago"
+    else:
+        days = diff.days
+        return f"{days}d ago"
+
+# ui
 
 def main(page: ft.Page):
     page.window.prevent_close = False
@@ -79,7 +99,10 @@ def main(page: ft.Page):
     page.window.width = 500
     page.window.height = 700
 
-    task_list = ft.Column()
+    task_list = ft.Column(
+        scroll=ft.ScrollMode.AUTO,
+        expand=True
+    )
 
     def refresh_task_list():
         task_list.controls.clear()
@@ -94,7 +117,16 @@ def main(page: ft.Page):
                 return lambda e: open_edit_dialog(t)
 
             checkbox = ft.Checkbox(value=False, on_change=make_complete_handler(task['id']))
-            task_text = ft.Text(task['name'], expand=True)
+
+            task_text = ft.Column(
+                [
+                    ft.Text(task['name'], weight="bold"),
+                    ft.Text(time_ago(task['date_added']), size=12, color="grey"),
+                ],
+                expand=True,
+                spacing=0
+            )
+
             edit_button = ft.IconButton(
                 icon=ft.Icons.EDIT,
                 tooltip="edit task",
@@ -115,7 +147,6 @@ def main(page: ft.Page):
 
     def complete_task(task_id):
         complete_task_db(task_id)
-        #close the window and program
         page.run_task(page.window.close)
 
     def pick_task(e):
@@ -151,11 +182,11 @@ def main(page: ft.Page):
             ft.TextButton("save", on_click=save_edit),
         ]
 
-        page.overlay.append(dialog) 
+        page.overlay.append(dialog)
         dialog.open = True
         page.update()
 
-    #layout
+    # layout
 
     task_input = ft.TextField(label="new task", expand=True, on_submit=add_task)
     oracle_button = ft.Button("ask the ✨OrACle✨", on_click=pick_task)
@@ -180,17 +211,20 @@ def main(page: ft.Page):
         ),
         oracle_container,
         ft.Divider(),
-        task_list,
+
+        ft.Container(task_list, expand=True),
+
         ft.Row([
             ft.Icon(ft.Icons.ADD, color="grey"),
             task_input,
             ft.Button("add", on_click=add_task)
         ])
     )
+
     refresh_task_list()
     page.update()
 
-#run the thing
+# run
 
 init_db()
 ft.run(main)
