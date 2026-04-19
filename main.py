@@ -140,6 +140,22 @@ def procrastination_time(task):
 
 # UI
 
+def stat_card(title, value, subtitle=None):
+    return ft.Container(
+        content=ft.Column(
+            [
+                ft.Text(title, size=12, color="grey"),
+                ft.Text(value, size=20, weight="bold"),
+                ft.Text(subtitle, size=11, color="grey") if subtitle else ft.Container()
+            ],
+            spacing=2
+        ),
+        padding=15,
+        border=ft.Border.all(1, "#dddddd"),
+        border_radius=12,
+        expand=True,
+    )
+
 def main(page: ft.Page):
     page.title = "a (1) task a day"
     page.window.width = 700
@@ -147,7 +163,10 @@ def main(page: ft.Page):
     page.padding = 0
 
     # ---------- STATE ----------
-    content = ft.Column(expand=True)
+    content = ft.Column(
+        expand=True,
+        scroll=ft.ScrollMode.AUTO
+    )
     task_list = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
     auto_close = True
 
@@ -237,6 +256,7 @@ def main(page: ft.Page):
 
         total_days = 0
         same_day = 0
+        less_than_7_days = 0
         fastest = None
         slowest = None
         fastest_time = float("inf")
@@ -262,6 +282,10 @@ def main(page: ft.Page):
             if days == 0:
                 same_day += 1
 
+            # less than 7 days
+            if days >= 1:
+                less_than_7_days += 1
+
             # fastest
             if diff.total_seconds() < fastest_time:
                 fastest_time = diff.total_seconds()
@@ -278,6 +302,8 @@ def main(page: ft.Page):
 
         avg = round(total_days / total, 2)
 
+        less_than_7_days_pct = round((less_than_7_days / total) * 100, 1)
+
         same_day_pct = round((same_day / total) * 100, 1)
 
         # most productive day
@@ -293,24 +319,45 @@ def main(page: ft.Page):
 
             ft.Divider(),
 
-            ft.Text(f"- completed: {total}"),
-            ft.Text(f"- same-day rate: {same_day_pct}%"),
-            ft.Text(f"- total procrastination: {total_days} days"),
-            ft.Text(f"- avg procrastination: {avg} days"),
+            ft.Row([
+                stat_card("total tasks completed", str(total)),
+
+            ]),
+
+            ft.Row([
+                stat_card("same day", f"{same_day} ({same_day_pct}%)"),
+                stat_card("less than 7 days", f"{less_than_7_days} ({less_than_7_days_pct}%)")
+            ]),
+
+            ft.Row([
+                stat_card("avg procrastination", f"{avg} days"),
+                stat_card("total procrastination", f"{total_days} days")
+            ]),
 
             ft.Divider(),
 
-            ft.Text(f"- fastest task: {fastest}"),
-            ft.Text(f"- slowest task: {slowest}"),
+            # --- EXTREMES ---
+            ft.Row([
+                stat_card("fastest task", fastest or "none"),
+                stat_card("slowest task", slowest or "none")
+            ]),
 
             ft.Divider(),
 
-            ft.Text(f"- most productive day: {best_day} ({best_day_count} tasks)"),
+            # --- PRODUCTIVITY ---
+            stat_card(
+                "most productive day",
+                best_day,
+                f"{best_day_count} tasks"
+            ),
 
             ft.Divider(),
 
-            ft.Text(f"- quick tasks (≤2d): {short}"),
-            ft.Text(f"- long tasks (>2d): {long}")
+            # --- DISTRIBUTION ---
+            ft.Row([
+                stat_card("quick (≤2d)", str(short)),
+                stat_card("long (>2d)", str(long))
+            ])
         ])
 
         page.update()
@@ -335,7 +382,7 @@ def main(page: ft.Page):
 
         content.controls.extend([
             ft.Text("debug", size=28, weight="bold"),
-            ft.Text("danger zone ⚠️", color="red"),
+            ft.Text("danger zone - use at your own risk", color="red"),
 
             ft.Button("delete completed", on_click=delete_completed),
             ft.Button("RESET ALL TASKS", bgcolor="red", color="white", on_click=reset_all),
