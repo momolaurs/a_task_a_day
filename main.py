@@ -48,6 +48,14 @@ def get_completed_tasks_db():
     rows = cursor.fetchall()
     return format_tasks(rows)
 
+def undo_task_db(task_id):
+    cursor.execute("""
+        UPDATE tasks 
+        SET completed = 0, date_completed = NULL
+        WHERE id = ?
+    """, (task_id,))
+    conn.commit()
+
 def format_tasks(rows):
     tasks = []
     for row in rows:
@@ -59,6 +67,7 @@ def format_tasks(rows):
             "completed": bool(row[4])
         })
     return tasks
+    
 
 def complete_task_db(task_id):
     cursor.execute("""
@@ -105,20 +114,31 @@ def time_ago(date_str):
     else:
         return f"{diff.days}d ago"
 
-def procrastination_days(task):
+def procrastination_time(task):
     dc = task.get('date_completed')
 
-    if not dc or dc == 0 or not isinstance(dc, str):
-        return 0
+    if not dc or not isinstance(dc, str):
+        return "unknown"
 
     try:
         added = datetime.strptime(task['date_added'], "%Y-%m-%d %H:%M:%S")
         completed = datetime.strptime(dc, "%Y-%m-%d %H:%M:%S")
-        return (completed - added).days
-    except Exception:
-        return 0
 
-# ui
+        diff = completed - added
+        days = diff.days
+        hours = diff.seconds // 3600
+
+        if days == 0 and hours == 0:
+            return "was completed immediately"
+        elif days == 0:
+            return f"was procrastinated for {hours}h"
+        else:
+            return f"was procrastinated for {days}d {hours}h"
+
+    except:
+        return "unknown"
+
+# UI
 
 def main(page: ft.Page):
     page.title = "a (1) task a day"
@@ -139,6 +159,10 @@ def main(page: ft.Page):
     def toggle_auto_close(e):
         nonlocal auto_close
         auto_close = e.control.value
+    
+    def undo_task(task_id):
+        undo_task_db(task_id)
+        show_completed()
 
     def show_home():
         clear_content()
@@ -177,21 +201,116 @@ def main(page: ft.Page):
         completed_list = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
 
         for task in tasks:
-            days = procrastination_days(task)
-            label = "same day" if days == 0 else f"was procrastinated for {days} days"
+            label = procrastination_time(task)
 
             completed_list.controls.append(
                 ft.Row([
                     ft.Column([
                         ft.Text(task['name'], weight="bold"),
                         ft.Text(label, size=12, color="grey")
-                    ], expand=True)
+                    ], expand=True),
+
+                    ft.IconButton(
+                        icon=ft.Icons.UNDO,
+                        tooltip="undo",
+                        on_click=lambda e, t=task: undo_task(t['id'])
+                    )
                 ])
             )
 
         content.controls.extend([
             ft.Text(f"completed tasks ({len(tasks)})", size=28, weight="bold"),
             completed_list
+        ])
+
+        page.update()
+    def show_stats():
+        clear_content()
+
+        tasks = get_completed_tasks_db()
+        total = len(tasks)
+
+        if total == 0:
+            content.controls.append(ft.Text("no data yet", size=24))
+            page.update()
+            return
+
+        total_days = 0
+        same_day = 0
+        fastest = None
+        slowest = None
+        fastest_time = float("inf")
+        slowest_time = -1
+
+        day_count = {}
+
+        for t in tasks:
+            dc = t.get('date_completed')
+            if not dc:
+                continue
+
+            added = datetime.strptime(t['date_added'], "%Y-%m-%d %H:%M:%S")
+            completed = datetime.strptime(dc, "%Y-%m-%d %H:%M:%S")
+
+            diff = completed - added
+            days = diff.days
+
+            # total procrastination
+            total_days += days
+
+            # same-day tracking
+            if days == 0:
+                same_day += 1
+
+            # fastest
+            if diff.total_seconds() < fastest_time:
+                fastest_time = diff.total_seconds()
+                fastest = t['name']
+
+            # slowest
+            if diff.total_seconds() > slowest_time:
+                slowest_time = diff.total_seconds()
+                slowest = t['name']
+
+            # productivity per day
+            day_str = completed.strftime("%Y-%m-%d")
+            day_count[day_str] = day_count.get(day_str, 0) + 1
+
+        avg = round(total_days / total, 2)
+
+        same_day_pct = round((same_day / total) * 100, 1)
+
+        # most productive day
+        best_day = max(day_count, key=day_count.get)
+        best_day_count = day_count[best_day]
+
+        # distribution
+        short = sum(1 for t in tasks if t.get('date_completed') and (datetime.strptime(t['date_completed'], "%Y-%m-%d %H:%M:%S") - datetime.strptime(t['date_added'], "%Y-%m-%d %H:%M:%S")).days <= 2)
+        long = total - short
+
+        content.controls.extend([
+            ft.Text("stats", size=28, weight="bold"),
+
+            ft.Divider(),
+
+            ft.Text(f"- completed: {total}"),
+            ft.Text(f"- same-day rate: {same_day_pct}%"),
+            ft.Text(f"- total procrastination: {total_days} days"),
+            ft.Text(f"- avg procrastination: {avg} days"),
+
+            ft.Divider(),
+
+            ft.Text(f"- fastest task: {fastest}"),
+            ft.Text(f"- slowest task: {slowest}"),
+
+            ft.Divider(),
+
+            ft.Text(f"- most productive day: {best_day} ({best_day_count} tasks)"),
+
+            ft.Divider(),
+
+            ft.Text(f"- quick tasks (≤2d): {short}"),
+            ft.Text(f"- long tasks (>2d): {long}")
         ])
 
         page.update()
@@ -204,16 +323,23 @@ def main(page: ft.Page):
             conn.commit()
             show_debug()
 
+        def reset_all(e):
+            cursor.execute("DELETE FROM tasks")
+            conn.commit()
+            show_debug()
+
+        def print_db(e):
+            cursor.execute("SELECT * FROM tasks")
+            print(cursor.fetchall())
+        
+
         content.controls.extend([
             ft.Text("debug", size=28, weight="bold"),
             ft.Text("danger zone ⚠️", color="red"),
 
-            ft.Button(
-                "delete ALL completed tasks",
-                bgcolor="red",
-                color="white",
-                on_click=delete_completed
-            )
+            ft.Button("delete completed", on_click=delete_completed),
+            ft.Button("RESET ALL TASKS", bgcolor="red", color="white", on_click=reset_all),
+            ft.Button("print database to console", on_click=print_db)
         ])
 
         page.update()
@@ -280,6 +406,7 @@ def main(page: ft.Page):
         selected_task_text.visible = True
 
         page.update()
+    
 
     def open_edit_dialog(task):
         edit_input = ft.TextField(value=task['name'])
@@ -327,6 +454,7 @@ def main(page: ft.Page):
         destinations=[
             ft.NavigationRailDestination(icon=ft.Icons.HOME, label="home"),
             ft.NavigationRailDestination(icon=ft.Icons.CHECK, label="completed"),
+            ft.NavigationRailDestination(icon=ft.Icons.ANALYTICS, label="stats"),
             ft.NavigationRailDestination(icon=ft.Icons.BUG_REPORT, label="debug"),
         ],
         on_change=lambda e: handle_nav_change(e.control.selected_index)
@@ -338,6 +466,8 @@ def main(page: ft.Page):
         elif index == 1:
             show_completed()
         elif index == 2:
+            show_stats()
+        elif index == 3:
             show_debug()
 
     # ---------- LAYOUT ----------
