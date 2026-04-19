@@ -311,7 +311,7 @@ def main(page: ft.Page):
         best_day_count = day_count[best_day]
 
         # distribution
-        short = sum(1 for t in tasks if t.get('date_completed') and (datetime.strptime(t['date_completed'], "%Y-%m-%d %H:%M:%S") - datetime.strptime(t['date_added'], "%Y-%m-%d %H:%M:%S")).days <= 2)
+        short = sum(1 for t in tasks if t.get('date_completed') and (datetime.strptime(t['date_completed'], "%Y-%m-%d %H:%M:%S") - datetime.strptime(t['date_added'], "%Y-%m-%d %H:%M:%S")).days <= 15)
         long = total - short
 
         content.controls.extend([
@@ -355,8 +355,8 @@ def main(page: ft.Page):
 
             # --- DISTRIBUTION ---
             ft.Row([
-                stat_card("quick (≤2d)", str(short)),
-                stat_card("long (>2d)", str(long))
+                stat_card("quick (≤15d)", str(short)),
+                stat_card("long (>15d)", str(long))
             ])
         ])
 
